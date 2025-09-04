@@ -1,21 +1,9 @@
-import random
-import time
-from colorama import Fore
+import sys, time
 
-def print_banner():
-    banner = f"""
-{Fore.CYAN}
-╔════════════════════════════════════════════════════════════╗
-║                Instagram Support Bot Pro                   ║
-║         نظام تقديم طلبات الدعم الرسمي لإنستغرام           ║
-║                    الإصدار الاحترافي                      ║
-╚════════════════════════════════════════════════════════════╝
-{Fore.RESET}
-    """
-    print(banner)
-
-def slow_typing(text, min_delay=0.05, max_delay=0.12):
+# طباعة بطيئة (محاكاة كتابة)
+def slow_typing(text, delay=0.05):
     for char in text:
-        print(char, end='', flush=True)
-        time.sleep(random.uniform(min_delay, max_delay))
+        sys.stdout.write(char)
+        sys.stdout.flush()
+        time.sleep(delay)
     print()
