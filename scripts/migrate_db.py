@@ -1,40 +1,38 @@
 import asyncio
 import aiosqlite
-import os
-
-DB_PATH = os.getenv("DB_PATH", "data/bot.db")
 
 async def migrate():
-    async with aiosqlite.connect(DB_PATH) as conn:
-        await conn.execute("""
-        CREATE TABLE IF NOT EXISTS activation_keys (
-            key TEXT PRIMARY KEY,
-            active INTEGER DEFAULT 1,
-            assigned_to INTEGER
-        );
+    async with aiosqlite.connect("bot.db") as db:
+        # جدول المستخدمين
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tg_id INTEGER UNIQUE,
+                key_used INTEGER DEFAULT 0,
+                current_request TEXT
+            )
         """)
-        await conn.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            tg_id INTEGER PRIMARY KEY,
-            active INTEGER DEFAULT 0,
-            current_request TEXT DEFAULT NULL
-        );
-        """)
-        await conn.execute("""
-        CREATE TABLE IF NOT EXISTS accounts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE,
-            status TEXT DEFAULT 'pending'
-        );
-        """)
-        await conn.execute("""
-        CREATE TABLE IF NOT EXISTS settings (
-            key TEXT PRIMARY KEY,
-            value TEXT
-        );
-        """)
-        await conn.commit()
-    print("[✅] تم إنشاء الجداول بنجاح!")
 
-if __name__ == "__main__":
-    asyncio.run(migrate())
+        # جدول المفاتيح
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS keys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                key TEXT UNIQUE,
+                used INTEGER DEFAULT 0
+            )
+        """)
+
+        # جدول الحسابات
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS accounts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE,
+                status TEXT DEFAULT 'pending',
+                attempts INTEGER DEFAULT 0
+            )
+        """)
+
+        await db.commit()
+        print("✅ قاعدة البيانات جاهزة!")
+
+asyncio.run(migrate())
