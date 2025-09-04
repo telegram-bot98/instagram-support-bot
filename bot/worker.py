@@ -10,7 +10,6 @@ class Worker:
         self.notify_admin = notify_admin
 
     async def send_support_request(self, username):
-        """إرسال طلب دعم إلى إنستغرام"""
         try:
             support_urls = [
                 "https://help.instagram.com/contact/606967319425038",
@@ -33,14 +32,9 @@ class Worker:
             return False
 
     async def check_account_status(self, username):
-        """تحقق من حالة الحساب إذا انفتح"""
-        try:
-            return random.choice([False, False, False, True])  # 25% احتمال
-        except:
-            return False
+        return random.choice([False, False, False, True])
 
     async def process_account(self, bot, user_id, username):
-        """تكرار المحاولات حتى ينفتح الحساب"""
         attempts = 0
         while True:
             acc = await self.db.fetchone("SELECT * FROM accounts WHERE username=?", (username,))
@@ -66,7 +60,6 @@ class Worker:
             await asyncio.sleep(wait_time)
 
     async def run(self, bot=None):
-        """تشغيل المعالجة"""
         accounts = await self.db.fetchall("SELECT username, status FROM accounts WHERE status='pending'")
         for username, _ in accounts:
             user = await self.db.fetchone("SELECT tg_id FROM users WHERE current_request=?", (username,))
