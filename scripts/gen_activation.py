@@ -1,18 +1,14 @@
-import random
-import string
-import asyncio
+import asyncio, random, string
 from bot.db import DB
-
-def generate_key(length=10):
-    chars = string.ascii_letters + string.digits
-    return ''.join(random.choice(chars) for _ in range(length))
+import os
 
 async def main():
-    db = DB("data/bot.db")
-    await db.init()
-    key = generate_key()
-    await db.execute("INSERT INTO activation_keys (key, active) VALUES (?,1)", (key,))
-    print(f"[✅] مفتاح التفعيل الجديد: {key}")
+    db_path = os.getenv("DB_PATH", "data/bot.db")
+    db = DB(db_path)
+    for _ in range(5):
+        key = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+        await db.execute("INSERT OR IGNORE INTO activation_keys (key, active) VALUES (?,1)", (key,))
+        print(f"🔑 مفتاح جديد: {key}")
 
 if __name__ == "__main__":
     asyncio.run(main())
