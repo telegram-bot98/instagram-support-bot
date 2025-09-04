@@ -1,55 +1,34 @@
-# داخل bot/main.py بعد استدعاء admin_panel
-from aiogram.filters import Command
+import aiosqlite
+import random
+import string
 
-# عرض كل المفاتيح
-@dp.message(Command(commands=["keys"]))
-async def keys_handler(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
-        await message.answer("❌ ليس لديك صلاحية استخدام هذا الأمر.")
-        return
-    keys = await admin_panel.list_keys()
-    if not keys:
-        await message.answer("❌ لا توجد مفاتيح مفعلة حالياً.")
-        return
-    msg = "🔑 قائمة مفاتيح التفعيل:\n"
-    for k, active in keys:
-        status = "✅ فعال" if active else "❌ معطل"
-        msg += f"{k} | {status}\n"
-    await message.answer(msg)
+class AdminPanel:
+    def __init__(self, db_path):
+        self.db = DB(db_path)
 
-# توليد مفتاح جديد
-@dp.message(Command(commands=["gen_key"]))
-async def gen_key_handler(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
-        await message.answer("❌ ليس لديك صلاحية استخدام هذا الأمر.")
-        return
-    key = await admin_panel.generate_key()
-    await message.answer(f"🔑 تم توليد مفتاح جديد:\n{key}")
+    # ---------------------------
+    # توليد مفتاح تفعيل جديد
+    # ---------------------------
+    async def generate_key(self, length=8):
+        key = ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
+        await self.db.execute("INSERT INTO activation_keys (key, active) VALUES (?,1)", (key,))
+        return key
 
-# تعطيل مفتاح
-@dp.message(Command(commands=["deactivate_key"]))
-async def deactivate_key_handler(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
-        await message.answer("❌ ليس لديك صلاحية استخدام هذا الأمر.")
-        return
-    parts = message.text.split()
-    if len(parts) < 2:
-        await message.answer("❌ استخدم: /deactivate_key <KEY>")
-        return
-    key = parts[1]
-    await admin_panel.deactivate_key(key)
-    await message.answer(f"❌ تم تعطيل المفتاح: {key}")
+    # ---------------------------
+    # قائمة المفاتيح
+    # ---------------------------
+    async def list_keys(self):
+        keys = await self.db.fetchall("SELECT key, active, assigned_to FROM activation_keys")
+        return keys
 
-# تفعيل مفتاح
-@dp.message(Command(commands=["activate_key"]))
-async def activate_key_handler(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
-        await message.answer("❌ ليس لديك صلاحية استخدام هذا الأمر.")
-        return
-    parts = message.text.split()
-    if len(parts) < 2:
-        await message.answer("❌ استخدم: /activate_key <KEY>")
-        return
-    key = parts[1]
-    await admin_panel.activate_key(key)
-    await message.answer(f"✅ تم تفعيل المفتاح: {key}")
+    # ---------------------------
+    # تفعيل مفتاح
+    # ---------------------------
+    async def activate_key(self, key):
+        await self.db.execute("UPDATE activation_keys SET active=1 WHERE key=?", (key,))
+
+    # ---------------------------
+    # تعطيل مفتاح
+    # ---------------------------
+    async def deactivate_key(self, key):
+        await self.db.execute("UPDATE activation_keys SET active=0 WHERE key=?", (key,))
