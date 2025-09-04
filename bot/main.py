@@ -1,98 +1,79 @@
-import asyncio, os
-from aiogram import Bot, Dispatcher, types
+import asyncio
+import logging
+from aiogram import Bot, Dispatcher, F
+from aiogram.types import Message
 from aiogram.filters import Command
-from aiogram.fsm.storage.memory import MemoryStorage
-from bot.worker import Worker
 from bot.db import DB
+from bot.worker import Worker
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = int(os.getenv("ADMIN_ID", 0))
-DB_PATH = os.getenv("DB_PATH", "data/bot.db")
+API_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+ADMIN_ID = 123456789  # حط هنا التيلجرام مالك
 
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher(storage=MemoryStorage())
+bot = Bot(token=API_TOKEN)
+dp = Dispatcher()
+db = DB("bot.db")
+worker = Worker("bot.db")
 
-db = DB(DB_PATH)
-
-# دالة الإشعار للـ Worker
-async def notify_admin(message_text):
-    try:
-        await bot.send_message(ADMIN_ID, message_text)
-    except Exception as e:
-        print(f"[❌] لم نستطع إرسال إشعار Admin: {e}")
-
-# إنشاء Worker وتمرير دالة الإشعار
-worker = Worker(DB_PATH, notify_admin=notify_admin)
-
-WELCOME_TEXT = "مرحبا! أدخل مفتاح التفعيل الخاص بك للمتابعة."
-
-@dp.message(Command(commands=["start"]))
-async def start_handler(message: types.Message):
-    await message.answer(WELCOME_TEXT)
-
-@dp.message()
-async def user_message_handler(message: types.Message):
-    user_id = message.from_user.id
-    text = message.text.strip()
-
-    user = await db.fetchone("SELECT * FROM users WHERE tg_id=?", (user_id,))
+# 🔹 طلب مفتاح تفعيل
+@dp.message(Command("start"))
+async def cmd_start(message: Message):
+    user = await db.fetchone("SELECT * FROM users WHERE tg_id=?", (message.from_user.id,))
     if not user:
-        key = text.upper()
-        key_data = await db.fetchone(
-            "SELECT key, active, assigned_to FROM activation_keys WHERE key=?", (key,)
-        )
-        if key_data and key_data[1] == 1 and key_data[2] is None:
-            await db.execute(
-                "UPDATE activation_keys SET active=0, assigned_to=? WHERE key=?", (user_id, key)
-            )
-            await db.execute(
-                "INSERT INTO users (tg_id, active, current_request) VALUES (?,1,NULL)", (user_id,)
-            )
-            await message.answer("✅ تم تفعيل مفتاحك! يمكنك الآن إرسال يوزر واحد فقط للمعالجة.")
-        else:
-            await message.answer("❌ مفتاح غير صالح أو مستخدم من قبل.")
-        return
-
-    if user[1] == 0:
-        await message.answer("❌ مفتاحك غير مفعل أو انتهت صلاحيته.")
-        return
-
-    if user[2]:
-        await message.answer("⚠️ لديك طلب قيد المعالجة حالياً. انتظر حتى يتم إنهاؤه.")
-        return
-
-    username = text.replace('@','')
-    existing = await db.fetchone("SELECT * FROM accounts WHERE username=?", (username,))
-    if not existing:
-        await db.execute(
-            "INSERT INTO accounts (username, status) VALUES (?, 'pending')", (username,)
-        )
-        await db.execute(
-            "UPDATE users SET current_request=? WHERE tg_id=?", (username, user_id)
-        )
-        await message.answer(f"✅ تم إضافة الحساب @{username} للمعالجة. البوت سيكرر المحاولات تلقائياً حتى يتم فك الباند.")
+        await message.answer("👋 أهلاً بك! أرسل مفتاح التفعيل للبدء.")
+        await db.execute("INSERT INTO users (tg_id, key_used) VALUES (?, ?)", (message.from_user.id, 0))
     else:
-        await message.answer(f"ℹ️ الحساب @{username} موجود مسبقاً في قائمة الانتظار.")
+        if user[2] == 1:
+            await message.answer("✅ مفتاحك مُفعّل. أرسل يوزر الحساب المبند:")
+        else:
+            await message.answer("🔑 أرسل مفتاح التفعيل للبدء.")
 
-@dp.message(Command(commands=["help"]))
-async def help_handler(message: types.Message):
-    await message.answer("/start - بدء البوت\n/help - تعليمات\n/run_worker - معالجة الحسابات (Admin فقط)")
+# 🔹 تفعيل المفتاح
+@dp.message(F.text)
+async def check_key(message: Message):
+    key = message.text.strip()
+    user = await db.fetchone("SELECT * FROM users WHERE tg_id=?", (message.from_user.id,))
+    valid_key = await db.fetchone("SELECT * FROM keys WHERE key=? AND used=0", (key,))
+    if valid_key:
+        await db.execute("UPDATE users SET key_used=1 WHERE tg_id=?", (message.from_user.id,))
+        await db.execute("UPDATE keys SET used=1 WHERE key=?", (key,))
+        await message.answer("✅ تم تفعيل المفتاح! أرسل يوزر حسابك المبند.")
+    else:
+        await message.answer("❌ مفتاح غير صالح أو مستخدم من قبل.")
 
-@dp.message(Command(commands=["run_worker"]))
-async def run_worker_handler(message: types.Message):
+# 🔹 لوحة تحكم الأدمن
+@dp.message(Command("panel"))
+async def admin_panel(message: Message):
     if message.from_user.id != ADMIN_ID:
-        await message.answer("❌ ليس لديك صلاحية.")
-        return
-    await message.answer("🚀 بدء معالجة الحسابات...")
-    await worker.run()
-    await message.answer("✅ انتهت المعالجة.")
+        return await message.answer("🚫 غير مسموح!")
+    users_count = await db.fetchone("SELECT COUNT(*) FROM users")
+    active_accounts = await db.fetchone("SELECT COUNT(*) FROM accounts WHERE status='pending'")
+    await message.answer(
+        f"📊 لوحة تحكم البوت:\n"
+        f"👥 المستخدمين: {users_count[0]}\n"
+        f"🔄 الحسابات تحت المعالجة: {active_accounts[0]}"
+    )
 
+# 🔹 توليد مفاتيح جديدة
+@dp.message(Command("gen_keys"))
+async def generate_keys(message: Message):
+    if message.from_user.id != ADMIN_ID:
+        return await message.answer("🚫 غير مسموح!")
+    parts = message.text.split()
+    if len(parts) < 2:
+        return await message.answer("استخدم: /gen_keys 5")
+    count = int(parts[1])
+    keys = []
+    for i in range(count):
+        key = f"KEY-{i+1}-{message.message_id}"
+        keys.append(key)
+        await db.execute("INSERT INTO keys (key, used) VALUES (?, 0)", (key,))
+    await message.answer("🔑 المفاتيح:\n" + "\n".join(keys))
+
+# 🔹 تشغيل المعالجة
 async def main():
-    print("[✅] البوت شغال...")
-    try:
-        await dp.start_polling(bot)
-    finally:
-        await bot.session.close()
+    logging.basicConfig(level=logging.INFO)
+    await worker.run(bot)
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
     asyncio.run(main())
