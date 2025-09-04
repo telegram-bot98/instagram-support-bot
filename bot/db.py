@@ -1,22 +1,24 @@
 import aiosqlite
 
 class DB:
-    def __init__(self, db_path):
-        self.db_path = db_path
+    def __init__(self, path):
+        self.path = path
 
     async def execute(self, query, params=()):
-        async with aiosqlite.connect(self.db_path) as conn:
-            await conn.execute(query, params)
-            await conn.commit()
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(query, params)
+            await db.commit()
 
     async def fetchone(self, query, params=()):
-        async with aiosqlite.connect(self.db_path) as conn:
-            cursor = await conn.execute(query, params)
-            row = await cursor.fetchone()
-            return row
+        async with aiosqlite.connect(self.path) as db:
+            cursor = await db.execute(query, params)
+            result = await cursor.fetchone()
+            await cursor.close()
+            return result
 
     async def fetchall(self, query, params=()):
-        async with aiosqlite.connect(self.db_path) as conn:
-            cursor = await conn.execute(query, params)
-            rows = await cursor.fetchall()
-            return rows
+        async with aiosqlite.connect(self.path) as db:
+            cursor = await db.execute(query, params)
+            result = await cursor.fetchall()
+            await cursor.close()
+            return result
