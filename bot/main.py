@@ -75,26 +75,18 @@ async def generate_keys(message: Message):
 # أمر Debug لمعرفة الـ ID
 @dp.message(Command("whoami"))
 async def whoami(message: Message):
+    print("Received /whoami from:", message.from_user.id, message.from_user.username)
     await message.answer(
         f"📌 ID اللي البوت شايفه هو: {message.from_user.id}\n"
         f"📌 ADMIN_ID بالكود هو: {ADMIN_ID}"
     )
 
-# أمر /help للأدمن فقط
-@dp.message(Command("help"))
-async def help_command(message: Message):
-    if message.from_user.id != ADMIN_ID:
-        return await message.answer("🚫 غير مسموح!")
-    
-    commands = [
-        "/start - بدء المحادثة مع البوت",
-        "/gen_keys <عدد> - توليد مفاتيح جديدة",
-        "/panel - عرض لوحة تحكم البوت",
-        "/whoami - معرفة ID مالك الحساب والـ ADMIN_ID",
-        "/help - عرض كل أوامر الأدمن"
-    ]
-    
-    await message.answer("📜 أوامر البوت للـ admin:\n\n" + "\n".join(commands))
+# --- Debug لكل الرسائل الواردة ---
+@dp.message()
+async def debug_all_messages(message: Message):
+    print("Message received:", message.text, "from ID:", message.from_user.id)
+    # هذا مؤقت فقط للـ debug، يمكن حذفه لاحقًا
+    await message.answer(f"Debug: {message.text} from {message.from_user.id}")
 
 # --- Main ---
 async def main():
