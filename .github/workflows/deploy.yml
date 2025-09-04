@@ -24,16 +24,6 @@ jobs:
       - name: Ensure data folder exists
         run: mkdir -p data
 
-      - name: Ensure bot.db exists
-        run: |
-          DB_PATH="data/bot.db"
-          if [ ! -f "$DB_PATH" ]; then
-            echo "Creating empty bot.db..."
-            sqlite3 "$DB_PATH" "VACUUM;"
-          else
-            echo "bot.db already exists"
-          fi
-
       - name: Run migrate_db
         run: python scripts/migrate_db.py
 
