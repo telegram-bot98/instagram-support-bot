@@ -5,14 +5,21 @@ from aiogram.types import Message
 from aiogram.filters import Command
 from bot.db import DB
 from bot.worker import Worker
+import os
 
-API_TOKEN = "8289211996:AAEW-qfaROZqTpggy1XTeLelbSrwwQbq7VU"
-ADMIN_ID = 110484930
+# قراءة التوكن و ADMIN_ID من environment
+API_TOKEN = os.getenv("BOT_TOKEN", "8289211996:AAEW-qfaROZqTpggy1XTeLelbSrwwQbq7VU")
+ADMIN_ID = int(os.getenv("ADMIN_ID", "110484930"))
+
+# مسار قاعدة البيانات
+DB_PATH = os.getenv("DB_PATH", "bot.db")
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
-db = DB("bot.db")
-worker = Worker("bot.db")
+db = DB(DB_PATH)
+worker = Worker(DB_PATH)
+
+# --- أوامر البوت ---
 
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
@@ -64,31 +71,39 @@ async def generate_keys(message: Message):
         keys.append(key)
         await db.execute("INSERT INTO keys (key, used) VALUES (?, 0)", (key,))
     await message.answer("🔑 المفاتيح الجديدة:\n" + "\n".join(keys))
-@dp.message(Command("gen_keys"))
-async def generate_keys(message: Message):
-    ...
-    await message.answer("🔑 المفاتيح الجديدة:\n" + "\n".join(keys))
 
-# <<< هنا ضيف الكود الجديد >>>
+# أمر Debug لمعرفة الـ ID
 @dp.message(Command("whoami"))
 async def whoami(message: Message):
     await message.answer(
-        f"📌 ID مالك هو: {message.from_user.id}\n"
+        f"📌 ID اللي البوت شايفه هو: {message.from_user.id}\n"
         f"📌 ADMIN_ID بالكود هو: {ADMIN_ID}"
     )
 
+# أمر /help للأدمن فقط
+@dp.message(Command("help"))
+async def help_command(message: Message):
+    if message.from_user.id != ADMIN_ID:
+        return await message.answer("🚫 غير مسموح!")
+    
+    commands = [
+        "/start - بدء المحادثة مع البوت",
+        "/gen_keys <عدد> - توليد مفاتيح جديدة",
+        "/panel - عرض لوحة تحكم البوت",
+        "/whoami - معرفة ID مالك الحساب والـ ADMIN_ID",
+        "/help - عرض كل أوامر الأدمن"
+    ]
+    
+    await message.answer("📜 أوامر البوت للـ admin:\n\n" + "\n".join(commands))
+
+# --- Main ---
 async def main():
     logging.basicConfig(level=logging.INFO)
-    await worker.run(bot)
-    await dp.start_polling(bot)
-
-if __name__ == "__main__":
-    asyncio.run(main())
-
-
-async def main():
-    logging.basicConfig(level=logging.INFO)
-    await worker.run(bot)
+    
+    # شغّل worker في الخلفية
+    asyncio.create_task(worker.run(bot))
+    
+    # شغّل polling للبوت
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
