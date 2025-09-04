@@ -6,8 +6,8 @@ from aiogram.filters import Command
 from bot.db import DB
 from bot.worker import Worker
 
-API_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
-ADMIN_ID = 123456789  # حط هنا التيلجرام مالك
+API_TOKEN = "8289211996:AAEW-qfaROZqTpggy1XTeLelbSrwwQbq7VU"
+ADMIN_ID = 110484930  # حط هنا التيلجرام مالك
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
