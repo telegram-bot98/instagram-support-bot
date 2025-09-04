@@ -41,4 +41,5 @@ jobs:
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           ADMIN_ID: ${{ secrets.ADMIN_ID }}
+          DB_PATH: data/bot.db
         run: python -m bot.main
