@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import sqlite3
 import os
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message
@@ -11,7 +10,7 @@ from bot.worker import Worker
 # --- Environment ---
 API_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
-DB_PATH = os.getenv("DB_PATH", "bot.db")
+DB_PATH = os.getenv("DB_PATH", "data/bot.db")
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
@@ -23,7 +22,7 @@ worker = Worker(DB_PATH)
 async def cmd_start(message: Message):
     user = await db.fetchone("SELECT * FROM users WHERE tg_id=?", (message.from_user.id,))
     if not user:
-        # المستخدم جديد → يضيف بس بدون تفعيل مفتاح
+        # المستخدم جديد → يضيفه بدون تفعيل المفتاح
         await db.execute("INSERT OR IGNORE INTO users (tg_id, key_used) VALUES (?, ?)", (message.from_user.id, 0))
         await message.answer("👋 أهلاً! أرسل مفتاح التفعيل للبدء.")
     else:
@@ -87,11 +86,4 @@ async def whoami(message: Message):
 async def debug_all_messages(message: Message):
     print("Message text:", message.text, "from ID:", message.from_user.id)
 
-# --- Main ---
-async def main():
-    logging.basicConfig(level=logging.INFO)
-    asyncio.create_task(worker.run(bot))
-    await dp.start_polling(bot)
-
-if __name__ == "__main__":
-    asyncio.run(main())
+# ---
