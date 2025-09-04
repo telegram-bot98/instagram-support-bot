@@ -64,6 +64,27 @@ async def generate_keys(message: Message):
         keys.append(key)
         await db.execute("INSERT INTO keys (key, used) VALUES (?, 0)", (key,))
     await message.answer("🔑 المفاتيح الجديدة:\n" + "\n".join(keys))
+@dp.message(Command("gen_keys"))
+async def generate_keys(message: Message):
+    ...
+    await message.answer("🔑 المفاتيح الجديدة:\n" + "\n".join(keys))
+
+# <<< هنا ضيف الكود الجديد >>>
+@dp.message(Command("whoami"))
+async def whoami(message: Message):
+    await message.answer(
+        f"📌 ID مالك هو: {message.from_user.id}\n"
+        f"📌 ADMIN_ID بالكود هو: {ADMIN_ID}"
+    )
+
+async def main():
+    logging.basicConfig(level=logging.INFO)
+    await worker.run(bot)
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
 
 async def main():
     logging.basicConfig(level=logging.INFO)
