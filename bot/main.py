@@ -8,7 +8,7 @@ from bot.worker import Worker
 import os
 
 # قراءة التوكن و ADMIN_ID من environment
-API_TOKEN = os.getenv("BOT_TOKEN", "8289211996:AAEW-qfaROZqTpggy1XTeLelbSrwwQbq7VU")
+API_TOKEN = os.getenv("BOT_TOKEN", "8289211996:AAH1qdcUtk1ICRdjdC_4NOCqzMzPv-NoxSo")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "110484930"))
 
 # مسار قاعدة البيانات
